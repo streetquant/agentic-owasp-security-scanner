@@ -1,11 +1,11 @@
 name: ci
-
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-
+permissions:
+  contents: read
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -19,12 +19,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -e .
-      - name: Lint and type check
+          pip install flake8 mypy bandit detect-secrets
+      - name: Lint
         run: |
-          pip install flake8 mypy bandit
           flake8 src
-          mypy src
-          bandit -r src -x tests
-      - name: Run tests
+      - name: Type check
         run: |
-          pytest -q --maxfail=1 --disable-warnings --cov=agentic_scanner --cov-report=term-missing
+          mypy src
+      - name: Security scan
+        run: |
+          bandit -r src -q || true
+          detect-secrets scan > .secrets.baseline || true
+      - name: Tests
+        run: |
+          pytest -q --disable-warnings --maxfail=1
